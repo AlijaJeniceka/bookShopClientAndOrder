@@ -2,19 +2,24 @@ package lv.alija.bookShopMicro2.web.controller;
 
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import lv.alija.bookShopMicro2.business.service.ClientService;
+import lv.alija.bookShopMicro2.exception.OrderClientControllerException;
 import lv.alija.bookShopMicro2.model.Client;
 import lv.alija.bookShopMicro2.swagger.DescriptionVariables;
 import lv.alija.bookShopMicro2.swagger.HTMLResponseMessages;
 import org.kie.api.runtime.KieSession;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.json.MappingJacksonValue;
+import org.springframework.lang.NonNull;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,7 +27,9 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.Valid;
+import javax.validation.constraints.Min;
 import java.util.List;
+import java.util.Optional;
 
 @Api(tags = {DescriptionVariables.CLIENT})
 @Log4j2
@@ -64,7 +71,7 @@ public class ClientController {
         log.info("Create new client by passing: {}", client);
         if (bindingResult.hasErrors()) {
             log.error("New client is not created: error {}", bindingResult);
-            return ResponseEntity.badRequest().build();
+            throw new OrderClientControllerException(HttpStatus.BAD_REQUEST, "Bad request to create book");
         }
         kieSession.insert(client);
         kieSession.fireAllRules();
@@ -73,5 +80,20 @@ public class ClientController {
         return new ResponseEntity<>(clientSaved, HttpStatus.CREATED);
     }
 
+    @GetMapping("/{id}")
+    @ApiOperation(value = "Find the client by id",
+            notes = "Provide an id to search specific client in database",
+            response = Client.class)
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = HTMLResponseMessages.HTTP_200),
+            @ApiResponse(code = 404, message = HTMLResponseMessages.HTTP_404),
+            @ApiResponse(code = 500, message = HTMLResponseMessages.HTTP_500)})
+    public ResponseEntity<Client> findClientById(@ApiParam(value = "id of the client", required = true)
+                                            @NonNull @PathVariable("id") @Min(value=1) Long id) {
+        log.info("Retrieve client by client id {}.", id);
+        Optional<Client> client = clientService.clientById(id);
+        log.debug("Client with id {} is found: {}", id, client);
+        return client.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+    }
 
 }

@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.Mockito.times;
@@ -56,6 +57,23 @@ class ClientControllerTest {
                 .andExpect(MockMvcResultMatchers.jsonPath("$[0].documentForDiscount").value(true))
                 .andExpect(status().isOk());
         verify(clientService, times(1)).findAllClients();
+    }
+
+    @Test
+    void findClientByIdTest() throws Exception {
+        Optional<Client> client = Optional.of(createClient());
+        when(clientService.clientById(1L)).thenReturn(client);
+
+        ResultActions mvcResult = mockMvc.perform(MockMvcRequestBuilders
+                        .get(URL + "/1"))
+                .andExpect(content().contentType(APPLICATION_JSON))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.id").value(1L))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.type").value("PERSON"))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.age").value(25L))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.discount").value(5L))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.documentForDiscount").value(true))
+                .andExpect(status().isOk());
+        verify(clientService, times(1)).clientById(1L);
     }
 
     @Test

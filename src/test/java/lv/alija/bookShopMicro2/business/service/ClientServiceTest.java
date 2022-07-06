@@ -4,6 +4,7 @@ import lv.alija.bookShopMicro2.business.mapper.ClientMapper;
 import lv.alija.bookShopMicro2.business.repository.ClientRepository;
 import lv.alija.bookShopMicro2.business.repository.model.ClientDAO;
 import lv.alija.bookShopMicro2.business.service.impl.ClientServiceImpl;
+import lv.alija.bookShopMicro2.exception.OrderClientControllerException;
 import lv.alija.bookShopMicro2.model.Client;
 import lv.alija.bookShopMicro2.model.enums.ClientTypes;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,14 +15,16 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.http.HttpStatus;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -64,11 +67,35 @@ class ClientServiceTest {
 
     @Test
     void findAllClients_InvalidTest(){
-        when(clientRepository.findAll()).thenReturn(Collections.emptyList());
-        assertTrue(clientService.findAllClients().isEmpty());
+        when(clientRepository.findAll()).thenReturn(Collections.emptyList())
+                        .thenThrow(new OrderClientControllerException(HttpStatus.NOT_FOUND, "Client list is empty"));
+        assertThrows(OrderClientControllerException.class, () -> clientService.findAllClients());
         verify(clientRepository, times(1)).findAll();
     }
 
+    @Test
+    void findClientById() {
+        when(clientRepository.findById(anyLong())).thenReturn(Optional.of(clientDAO));
+        when(clientMapper.clientDAOToClient(clientDAO)).thenReturn(client);
+        Optional<Client> clientById = clientService.clientById(client.getId());
+        assertEquals(client.getId(), clientById.get().getId());
+        assertEquals(client.getAge(), clientById.get().getAge());
+        assertEquals(client.getDiscount(), clientById.get().getDiscount());
+        assertEquals(client.getType(), clientById.get().getType());
+        verify(clientRepository, times(1)).findById(anyLong());
+    }
+
+    @Test
+    void findBookById_idNegativeOrNull_InvalidTest() {
+        assertThrows(OrderClientControllerException.class, () -> clientService.clientById(-1L));
+        verify(clientRepository, times(0)).findById(-1L);
+    }
+
+    @Test
+    void findBookById_idPositiveButNotFound_InvalidTest() {
+        assertThrows(OrderClientControllerException.class, () -> clientService.clientById(5L));
+        verify(clientRepository, times(1)).findById(5L);
+    }
     @Test
     void saveClient() throws Exception {
         when(clientRepository.save(clientDAO)).thenReturn(clientDAO);
